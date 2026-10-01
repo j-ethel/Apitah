@@ -94,12 +94,34 @@ function RenderCard({template,row}:{template:DocumentTemplate;row:Record<string,
  </div>
 }
 
+async function exportCardPng(template:DocumentTemplate,row:Record<string,unknown>,index:number){
+ const canvas=document.createElement("canvas");canvas.width=CARD_W*2;canvas.height=CARD_H*2;
+ const ctx=canvas.getContext("2d");if(!ctx)return;ctx.scale(2,2);ctx.fillStyle="#fff";ctx.fillRect(0,0,CARD_W,CARD_H);
+ const validImage=(v:unknown)=>typeof v==="string"&&(v.startsWith("http://")||v.startsWith("https://")||v.startsWith("data:image/"));
+ for(const el of template.elements){
+   if(el.type==="shape"){ctx.fillStyle="#eef0f3";ctx.fillRect(el.x,el.y,el.width,el.height);continue}
+   if(el.type==="image"&&validImage(row[el.fieldKey??""])){
+     try{const img=new Image();img.crossOrigin="anonymous";img.src=String(row[el.fieldKey??""]);await new Promise<void>((ok,fail)=>{img.onload=()=>ok();img.onerror=()=>fail();});ctx.drawImage(img,el.x,el.y,el.width,el.height);continue}catch{}
+   }
+   if(el.type==="image"){ctx.strokeStyle="#b7bdc7";ctx.strokeRect(el.x,el.y,el.width,el.height);continue}
+   ctx.fillStyle="#273143";ctx.font=`${el.fontWeight} ${el.fontSize}px Arial`;ctx.textAlign=el.align==="center"?"center":el.align==="right"?"right":"left";
+   const value=resolveElementValue(el,row);const tx=el.align==="center"?el.x+el.width/2:el.align==="right"?el.x+el.width:el.x+5;ctx.fillText(value,tx,el.y+el.fontSize+3);
+ }
+ canvas.toBlob(blob=>{if(!blob)return;const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`apitah-carte-${index+1}.png`;a.click();URL.revokeObjectURL(a.href)},"image/png");
+}
+
+function printBulk(template:DocumentTemplate,rows:Record<string,unknown>[]){
+ const cards=rows.map(row=>`<div class="print-card">${template.elements.map(el=>el.type==="shape"?'<div class="print-shape"></div>':`<div class="print-el" style="left:${el.x}px;top:${el.y}px;width:${el.width}px;height:${el.height}px;font-size:${el.fontSize}px;font-weight:${el.fontWeight};text-align:${el.align}">${el.type==="image"?"":resolveElementValue(el,row)}</div>`).join("")}</div>`).join("");
+ const w=window.open("","_blank");if(!w)return;
+ w.document.write(`<!doctype html><html><head><title>Apitah - cartes</title><style>@page{size:A4;margin:10mm}body{font-family:Arial;margin:0;display:grid;grid-template-columns:repeat(2,1fr);gap:8mm}.print-card{width:85mm;height:54mm;position:relative;border:1px solid #ddd;break-inside:avoid;overflow:hidden}.print-el,.print-shape{position:absolute;box-sizing:border-box;padding:3px 5px;overflow:hidden}.print-shape{left:0;top:0;width:100%;height:100%;background:#eef0f3;z-index:-1}</style></head><body>${cards}</body></html>`);w.document.close();w.focus();setTimeout(()=>w.print(),250);
+}
+
 function BulkPreview({template,rows,close}:{template:DocumentTemplate;rows:Record<string,unknown>[];close:()=>void}){
  return <div className="preview-overlay" style={{position:"fixed",inset:0,zIndex:1001,background:"rgba(0,0,0,.55)",padding:24,overflow:"auto"}} onClick={close}>
    <div style={{background:"#fff",borderRadius:16,padding:24,width:"100%",minHeight:"100%",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}} onClick={ev=>ev.stopPropagation()}>
      <div className="bulk-header">
        <div><h2 style={{margin:0}}>Génération en masse</h2><small>{template.name} · {rows.length} carte(s) générée(s)</small></div>
-       <div className="actions"><span className="generated-count">✓ {rows.length} générées</span><button onClick={close}>Fermer</button></div>
+       <div className="actions"><span className="generated-count">✓ {rows.length} générées</span><button disabled={!rows.length} onClick={()=>printBulk(template,rows)}>Exporter PDF</button><button disabled={!rows.length} onClick={()=>exportCardPng(template,rows[0],0)}>PNG carte 1</button><button onClick={close}>Fermer</button></div>
      </div>
      {rows.length===0?<p>Aucune ligne de données à générer.</p>:<div className="generated-grid">{rows.map((row,i)=><div className="generated-item" key={i}><RenderCard template={template} row={row}/><span>Carte {i+1}</span></div>)}</div>}
    </div>
