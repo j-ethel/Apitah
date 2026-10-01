@@ -3,6 +3,7 @@ import { LayoutDashboard, MousePointer2, FileText, Braces, Shapes, Table2, Plus,
 import type { MouseEvent, DragEvent, ChangeEvent } from "react";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
+import { jsPDF } from "jspdf";
 import type { Section, CanvasElement, DocumentTemplate, DynamicField } from "./types";
 import { dynamicFields as initialFields, initialElements } from "./data";
 
@@ -116,6 +117,22 @@ async function exportCardPng(template:DocumentTemplate,row:Record<string,unknown
 
 function cardToBlob(template:DocumentTemplate,row:Record<string,unknown>):Promise<Blob|null>{
  return new Promise(resolve=>{const cardW=template.width*MM_PX,cardH=template.height*MM_PX;const canvas=document.createElement("canvas");canvas.width=cardW*2;canvas.height=cardH*2;const ctx=canvas.getContext("2d");if(!ctx){resolve(null);return}ctx.scale(2,2);ctx.fillStyle="#fff";ctx.fillRect(0,0,cardW,cardH);const validImage=(v:unknown)=>typeof v==="string"&&(v.startsWith("http://")||v.startsWith("https://")||v.startsWith("data:image/"));const work=async()=>{for(const el of template.elements){if(el.type==="shape"){ctx.fillStyle="#eef0f3";ctx.fillRect(el.x,el.y,el.width,el.height);continue}if(el.type==="image"&&validImage(row[el.fieldKey??""])){try{const img=new Image();img.crossOrigin="anonymous";img.src=String(row[el.fieldKey??""]);await new Promise<void>((ok,fail)=>{img.onload=()=>ok();img.onerror=()=>fail()});ctx.drawImage(img,el.x,el.y,el.width,el.height);continue}catch{}}if(el.type==="image"){ctx.strokeStyle="#b7bdc7";ctx.strokeRect(el.x,el.y,el.width,el.height);continue}ctx.fillStyle="#273143";ctx.font=`${el.fontWeight} ${el.fontSize}px Arial`;ctx.textAlign=el.align==="center"?"center":el.align==="right"?"right":"left";const tx=el.align==="center"?el.x+el.width/2:el.align==="right"?el.x+el.width:el.x+5;ctx.fillText(resolveElementValue(el,row),tx,el.y+el.fontSize+3)}canvas.toBlob(resolve,"image/png")};work()})}
+async function exportPdfDirect(template:DocumentTemplate,rows:Record<string,unknown>[],gap:number,margin:number,orientation:"portrait"|"landscape",onProgress?:(n:number)=>void){
+ const layout=calculateA4(template.width,template.height,orientation,margin,gap); if(layout.perPage<1){alert("Le format choisi ne tient pas sur une feuille A4 avec ces réglages.");return}
+ const pdf=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+ const cardBlobs:Blob[]=[];
+ for(let i=0;i<rows.length;i++){const b=await cardToBlob(template,rows[i]);if(b)cardBlobs.push(b);onProgress?.(i+1)}
+ const cardsPerPage=layout.perPage;
+ for(let i=0;i<cardBlobs.length;i++){
+   if(i>0&&i%cardsPerPage===0)pdf.addPage("a4",orientation);
+   const local=i%cardsPerPage,row=Math.floor(local/layout.columns),col=local%layout.columns;
+   const x=margin+col*(template.width+gap),y=margin+row*(template.height+gap);
+   const data=await blobToDataUrl(cardBlobs[i]);
+   pdf.addImage(data,"PNG",x,y,template.width,template.height);
+ }
+ pdf.save("apitah-cartes.pdf");
+}
+function blobToDataUrl(blob:Blob):Promise<string>{return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=reject;r.readAsDataURL(blob)})}
 async function exportAllZip(template:DocumentTemplate,rows:Record<string,unknown>[],onProgress?:(n:number)=>void){const zip=new JSZip();for(let i=0;i<rows.length;i++){const blob=await cardToBlob(template,rows[i]);if(blob)zip.file(`carte-${safeFileName(rows[i],i)}.png`,blob);onProgress?.(i+1)}const out=await zip.generateAsync({type:"blob"});const url=URL.createObjectURL(out);const a=document.createElement("a");a.href=url;a.download="apitah-cartes.zip";a.click();URL.revokeObjectURL(url)}
 function printBulk(template:DocumentTemplate,rows:Record<string,unknown>[],gap:number,margin:number,orientation:"portrait"|"landscape"){
  const layout=calculateA4(template.width,template.height,orientation,margin,gap);if(layout.perPage<1){alert("Le format choisi ne tient pas sur une feuille A4 avec ces réglages.");return}
@@ -129,7 +146,7 @@ function BulkPreview({template,rows,close}:{template:DocumentTemplate;rows:Recor
    <div style={{background:"#fff",borderRadius:16,padding:24,width:"100%",minHeight:"100%",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}} onClick={ev=>ev.stopPropagation()}>
      <div className="bulk-header">
        <div><h2 style={{margin:0}}>Génération en masse</h2><small>{template.name} · {rows.length} carte(s) générée(s)</small></div>
-       <div className="actions"><span className="generated-count">✓ {rows.length} générées</span><button disabled={!rows.length} onClick={()=>printBulk(template,rows,gap,margin,orientation)}>Exporter PDF</button><button disabled={!rows.length||exporting} onClick={async()=>{setExporting(true);setProgress(0);await exportAllZip(template,rows,n=>setProgress(Math.round(n/rows.length*100)));setExporting(false)}}>{exporting?`ZIP ${progress}%`:`PNG / ZIP`}</button><button onClick={close}>Fermer</button></div>
+       <div className="actions"><span className="generated-count">✓ {rows.length} générées</span><button disabled={!rows.length||exporting} onClick={async()=>{setExporting(true);setProgress(0);await exportPdfDirect(template,rows,gap,margin,orientation,n=>setProgress(Math.round(n/rows.length*100)));setExporting(false)}}>{exporting?`PDF ${progress}%`:"Exporter PDF"}</button><button disabled={!rows.length||exporting} onClick={async()=>{setExporting(true);setProgress(0);await exportAllZip(template,rows,n=>setProgress(Math.round(n/rows.length*100)));setExporting(false)}}>{exporting?`ZIP ${progress}%`:`PNG / ZIP`}</button><button onClick={close}>Fermer</button></div>
      </div>
      <div className="export-settings"><strong>Format : {template.width} × {template.height} mm</strong><label>Orientation <select value={orientation} onChange={ev=>setOrientation(ev.target.value as "portrait"|"landscape")}><option value="portrait">Portrait</option><option value="landscape">Paysage</option></select></label><label>Colonnes <span>{columns} colonne(s) × {layout.rows} ligne(s) · {layout.perPage} carte(s)/page</span></label><label>Espacement <input type="number" min="0" max="30" value={gap} onChange={ev=>setGap(Number(ev.target.value))}/> mm</label><label>Marge <input type="number" min="0" max="30" value={margin} onChange={ev=>setMargin(Number(ev.target.value))}/> mm</label></div>
      <div className={`a4-sheet ${orientation}`} style={{padding:`${margin}mm`,gap:`${gap}mm`,gridTemplateColumns:`repeat(${columns},${template.width}mm)`}}>{rows.map((row,i)=><div className="a4-card" key={i}><RenderCard template={template} row={row}/><span>Carte {i+1}</span></div>)}</div>
