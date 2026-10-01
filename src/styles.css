@@ -11,3 +11,16 @@
 
 .prop-actions{display:flex;align-items:center;gap:6px;margin-left:auto}.prop-actions button{border:1px solid #dfe3e8;background:#fff;border-radius:5px;padding:3px 7px;cursor:pointer}.image-upload-control{display:flex!important;align-items:center;gap:8px}.image-upload-control input{width:auto!important;height:auto!important;padding:0!important;border:0!important}.advanced-style input[type="color"]{width:42px!important;height:30px!important;padding:2px!important}.advanced-style input[type="checkbox"]{width:auto!important;height:auto!important;margin-right:6px}
 .export-progress{position:relative;height:8px;margin:0 0 18px;background:#e8ebef;border-radius:99px;overflow:hidden}.export-progress-bar{height:100%;background:#172033;border-radius:99px;transition:width .2s ease}.export-progress span{display:block;margin-top:6px;font-size:10px;color:#697386}.export-error{padding:10px 12px;margin-bottom:16px;border:1px solid #e5c5c5;background:#fff5f5;color:#8a4a4a;border-radius:8px;font-size:10px}
+
+/* Import wizard */
+.import-actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+.mapping-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;margin:16px 0}
+.section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.section-title h3{margin:0}
+.mapping-list{display:grid;gap:8px}
+.mapping-row{display:grid;grid-template-columns:minmax(130px,1fr) 24px minmax(130px,1fr) 70px;align-items:center;gap:8px;padding:10px 12px;border-radius:9px;background:#f7f8fa}
+.mapping-row code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mapping-row small{text-align:right}
+.match-good{color:#147a4a;font-weight:700}
+.match-none{color:#9a5b00}
+.excel-table .section-title{padding:0 2px}
