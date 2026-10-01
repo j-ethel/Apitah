@@ -16,7 +16,7 @@ const starterTemplates:DocumentTemplate[]=[
 function App(){
  const[s,setS]=useState<Section>("editor");const[e,setE]=useState<CanvasElement[]>(initialElements);const[sel,setSel]=useState("e3");const[saved,setSaved]=useState(false);
  const[templates,setTemplates]=useState<DocumentTemplate[]>(starterTemplates);const[activeTemplate,setActiveTemplate]=useState("tpl-1");const[fields,setFields]=useState<DynamicField[]>(initialFields);
- const[rows,setRows]=useState<Record<string,unknown>[]>([]);const[fileName,setFileName]=useState("");const[selectedRow,setSelectedRow]=useState(0);const[preview,setPreview]=useState(false);
+ const[rows,setRows]=useState<Record<string,unknown>[]>([]);const[fileName,setFileName]=useState("");const[selectedRow,setSelectedRow]=useState(0);const[preview,setPreview]=useState(false);const[bulk,setBulk]=useState(false);const[generated,setGenerated]=useState<Record<string,unknown>[]>([]);
  const add=(type:CanvasElement["type"],label:string,fieldKey?:string,x=100,y=150)=>{const id="e"+Date.now();setE(v=>[...v,{id,type,label,x,y,width:type==="image"?75:130,height:type==="image"?92:28,fontSize:13,fontWeight:"600",align:"left",fieldKey}]);setSel(id)};
  const update=(id:string,p:Partial<CanvasElement>)=>setE(v=>v.map(x=>x.id===id?{...x,...p}:x));const remove=()=>{setE(v=>v.filter(x=>x.id!==sel));setSel("")};
  const saveTemplate=()=>{setTemplates(v=>v.map(t=>t.id===activeTemplate?{...t,elements:e,updatedAt:"À l'instant"}:t));setSaved(true);setTimeout(()=>setSaved(false),1500)};
@@ -26,7 +26,7 @@ function App(){
  const duplicateTemplate=(id:string)=>{const source=templates.find(t=>t.id===id);if(!source)return;const copy:DocumentTemplate={...source,id:"tpl-"+Date.now(),name:source.name+" — Copie",updatedAt:"À l'instant",elements:source.elements.map(x=>({...x,id:x.id+"-copy"}))};setTemplates(v=>[...v,copy])};
  const deleteTemplate=(id:string)=>{if(templates.length<=1)return;setTemplates(v=>v.filter(t=>t.id!==id));if(activeTemplate===id){const next=templates.find(t=>t.id!==id);if(next){setActiveTemplate(next.id);setE(next.elements.map(x=>({...x})));setSel(next.elements[0]?.id??"")}}};
  const importExcel=(ev:ChangeEvent<HTMLInputElement>)=>{const file=ev.target.files?.[0];if(!file)return;setFileName(file.name);const reader=new FileReader();reader.onload=event=>{try{const data=new Uint8Array(event.target?.result as ArrayBuffer);const wb=XLSX.read(data,{type:"array"});const sheet=wb.Sheets[wb.SheetNames[0]];const json=XLSX.utils.sheet_to_json<Record<string,unknown>>(sheet,{defval:""});setRows(json);const headers=json.length?Object.keys(json[0]):[];const generated:DynamicField[]=headers.map((h,i)=>{const key=h.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"")||"champ_"+(i+1);const sample=json.find(r=>String(r[h]).trim()!=="")?.[h];const type=typeof sample==="number"?"number":"text";return{id:"excel-"+i+"-"+Date.now(),label:h,key,type}});setFields(prev=>{const map=new Map(prev.map(f=>[f.key,f]));generated.forEach(f=>{if(!map.has(f.key))map.set(f.key,f)});return[...map.values()]});}catch{setRows([])}};reader.readAsArrayBuffer(file);ev.target.value=""};
- return <div className="app"><aside className="sidebar"><div className="brand"><div className="logo">A</div><div><strong>Apitah</strong><span>Document Studio</span></div></div><nav>{nav.map(([id,label,I])=><button key={id} className={s===id?"nav-item active":"nav-item"} onClick={()=>setS(id)}><I size={18}/><span>{label}</span>{id==="fields"&&<em>{fields.length}</em>}</button>)}</nav></aside><main><header><div><small>Projets / {templates.find(t=>t.id===activeTemplate)?.name}</small><h1>{nav.find(n=>n[0]===s)?.[1]}</h1></div><div className="actions"><button onClick={()=>setPreview(true)}><Eye size={16}/> Aperçu</button><button className="dark" onClick={saveTemplate}><Save size={16}/>{saved?"Enregistré":"Enregistrer"}</button></div></header>{s==="editor"?<Editor e={e} sel={sel} setSel={setSel} add={add} update={update} remove={remove} fields={fields}/>:s==="templates"?<Templates templates={templates} active={activeTemplate} open={openTemplate} create={createTemplate} rename={renameTemplate} duplicate={duplicateTemplate} remove={deleteTemplate}/>:s==="excel"?<ExcelPage fileName={fileName} rows={rows} importExcel={importExcel}/>:<Page section={s} add={add} fields={fields}/>}</main></div>
+ return <div className="app"><aside className="sidebar"><div className="brand"><div className="logo">A</div><div><strong>Apitah</strong><span>Document Studio</span></div></div><nav>{nav.map(([id,label,I])=><button key={id} className={s===id?"nav-item active":"nav-item"} onClick={()=>setS(id)}><I size={18}/><span>{label}</span>{id==="fields"&&<em>{fields.length}</em>}</button>)}</nav></aside><main><header><div><small>Projets / {templates.find(t=>t.id===activeTemplate)?.name}</small><h1>{nav.find(n=>n[0]===s)?.[1]}</h1></div><div className="actions"><button onClick={()=>setPreview(true)}><Eye size={16}/> Aperçu</button><button className="bulk-btn" disabled={!rows.length} onClick={()=>{setGenerated(rows.map(row=>({...row})));setBulk(true)}}>Générer toutes les cartes</button><button className="dark" onClick={saveTemplate}><Save size={16}/>{saved?"Enregistré":"Enregistrer"}</button></div></header>{s==="editor"?<Editor e={e} sel={sel} setSel={setSel} add={add} update={update} remove={remove} fields={fields}/>:s==="templates"?<Templates templates={templates} active={activeTemplate} open={openTemplate} create={createTemplate} rename={renameTemplate} duplicate={duplicateTemplate} remove={deleteTemplate}/>:s==="excel"?<ExcelPage fileName={fileName} rows={rows} importExcel={importExcel}/>:<Page section={s} add={add} fields={fields}/>}</main></div>
 }
 
 function Editor({e,sel,setSel,add,update,remove,fields}:{e:CanvasElement[];sel:string;setSel:(x:string)=>void;add:(t:CanvasElement["type"],l:string,k?:string,x?:number,y?:number)=>void;update:(id:string,p:Partial<CanvasElement>)=>void;remove:()=>void;fields:DynamicField[]}){
@@ -74,6 +74,34 @@ function Preview({template,rows,rowIndex,setRowIndex,close}:{template:DocumentTe
        </div>
      </div>
      {rows.length===0&&<p style={{margin:"14px 0 0",textAlign:"center",color:"#666"}}>Importez un fichier Excel pour visualiser automatiquement une ligne dans le modèle.</p>}
+   </div>
+ </div>
+}
+
+
+function resolveElementValue(el:CanvasElement,row:Record<string,unknown>){
+ if(!el.fieldKey)return el.label;
+ const value=row[el.fieldKey];
+ return value===undefined||value===null||String(value)===""?"—":String(value);
+}
+
+function RenderCard({template,row}:{template:DocumentTemplate;row:Record<string,unknown>}){
+ const validImage=(v:unknown)=>typeof v==="string"&&(v.startsWith("http://")||v.startsWith("https://")||v.startsWith("data:image/"));
+ return <div className="card generated-card">
+   {template.elements.map(el=><div key={el.id} className={"canvas-el "+el.type} style={{left:el.x,top:el.y,width:el.width,height:el.height,fontSize:el.fontSize,fontWeight:el.fontWeight,textAlign:el.align}}>
+     {el.type==="image" ? (validImage(row[el.fieldKey??""]) ? <img src={String(row[el.fieldKey??""])} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <div className="photo-placeholder"><ImageIcon size={25}/></div>) : el.type==="shape" ? null : resolveElementValue(el,row)}
+   </div>)}
+ </div>
+}
+
+function BulkPreview({template,rows,close}:{template:DocumentTemplate;rows:Record<string,unknown>[];close:()=>void}){
+ return <div className="preview-overlay" style={{position:"fixed",inset:0,zIndex:1001,background:"rgba(0,0,0,.55)",padding:24,overflow:"auto"}} onClick={close}>
+   <div style={{background:"#fff",borderRadius:16,padding:24,width:"100%",minHeight:"100%",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}} onClick={ev=>ev.stopPropagation()}>
+     <div className="bulk-header">
+       <div><h2 style={{margin:0}}>Génération en masse</h2><small>{template.name} · {rows.length} carte(s) générée(s)</small></div>
+       <div className="actions"><span className="generated-count">✓ {rows.length} générées</span><button onClick={close}>Fermer</button></div>
+     </div>
+     {rows.length===0?<p>Aucune ligne de données à générer.</p>:<div className="generated-grid">{rows.map((row,i)=><div className="generated-item" key={i}><RenderCard template={template} row={row}/><span>Carte {i+1}</span></div>)}</div>}
    </div>
  </div>
 }
