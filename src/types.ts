@@ -1,4 +1,4 @@
-export type Section="dashboard"|"editor"|"templates"|"fields"|"elements"|"excel";
+export type Section="dashboard"|"jobs"|"editor"|"templates"|"fields"|"elements"|"excel";
 export type DynamicField={id:string;label:string;key:string;type:"text"|"number"|"date"|"select"|"image";options?:string[];cloudId?:string};
 export type CanvasElement={id:string;type:"text"|"image"|"field"|"shape";label:string;x:number;y:number;width:number;height:number;fontSize:number;fontWeight:"400"|"600"|"700";align:"left"|"center"|"right";fieldKey?:string;color?:string;backgroundColor?:string;borderColor?:string;borderWidth?:number;borderRadius?:number;opacity?:number;rotation?:number;zIndex?:number;lockAspect?:boolean;assetUrl?:string};
 export type DocumentTemplate={id:string;name:string;description:string;width:number;height:number;updatedAt:string;elements:CanvasElement[];cloudId?:string};
