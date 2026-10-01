@@ -127,15 +127,15 @@ function cardToBlob(template:DocumentTemplate,row:Record<string,unknown>):Promis
   ctx.scale(2,2);ctx.fillStyle="#fff";ctx.fillRect(0,0,cardW,cardH);
   const work=async()=>{
    for(const el of template.elements){
-    if(el.type==="shape"){ctx.fillStyle="#eef0f3";ctx.fillRect(el.x,el.y,el.width,el.height);continue}
+    if(el.type==="shape"){ctx.save();ctx.globalAlpha=el.opacity??1;ctx.translate(el.x+el.width/2,el.y+el.height/2);ctx.rotate(((el.rotation??0)*Math.PI)/180);ctx.fillStyle=el.backgroundColor||"#eef0f3";ctx.fillRect(-el.width/2,-el.height/2,el.width,el.height);if((el.borderWidth??0)>0){ctx.strokeStyle=el.borderColor||"#b7bdc7";ctx.lineWidth=el.borderWidth??0;ctx.strokeRect(-el.width/2,-el.height/2,el.width,el.height)}ctx.restore();continue}
     if(el.type==="image"&&validImageUrl(row[el.fieldKey??""])){
      try{const img=new Image();img.crossOrigin="anonymous";img.src=String(row[el.fieldKey??""]);await new Promise<void>((ok,fail)=>{img.onload=()=>ok();img.onerror=()=>fail()});drawCoverImage(ctx,img,el.x,el.y,el.width,el.height);continue}catch{}
     }
     if(el.type==="image"){ctx.strokeStyle="#b7bdc7";ctx.strokeRect(el.x,el.y,el.width,el.height);continue}
-    ctx.save();ctx.beginPath();ctx.rect(el.x,el.y,el.width,el.height);ctx.clip();
-    ctx.fillStyle="#273143";ctx.font=`${el.fontWeight} ${el.fontSize}px Arial`;ctx.textAlign=el.align==="center"?"center":el.align==="right"?"right":"left";ctx.textBaseline="alphabetic";
+    ctx.save();ctx.globalAlpha=el.opacity??1;ctx.translate(el.x+el.width/2,el.y+el.height/2);ctx.rotate(((el.rotation??0)*Math.PI)/180);ctx.beginPath();ctx.rect(-el.width/2,-el.height/2,el.width,el.height);ctx.clip();
+    ctx.fillStyle=el.color||"#273143";ctx.font=`${el.fontWeight} ${el.fontSize}px Arial`;ctx.textAlign=el.align==="center"?"center":el.align==="right"?"right":"left";ctx.textBaseline="alphabetic";
     const value=resolveElementValue(el,row);const tx=el.align==="center"?el.x+el.width/2:el.align==="right"?el.x+el.width:el.x+5;
-    ctx.fillText(value,tx,el.y+el.fontSize+3);ctx.restore();
+    ctx.fillText(value,tx-(el.x+el.width/2),-el.height/2+el.fontSize+3);if((el.borderWidth??0)>0){ctx.strokeStyle=el.borderColor||"#b7bdc7";ctx.lineWidth=el.borderWidth??0;ctx.strokeRect(-el.width/2,-el.height/2,el.width,el.height)}ctx.restore();
    }
    canvas.toBlob(resolve,"image/png")
   };work()
