@@ -58,7 +58,7 @@ function Preview({template,rows,rowIndex,setRowIndex,close}:{template:DocumentTe
  return <div className="preview-overlay" style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={close}>
    <div style={{background:"#fff",borderRadius:16,padding:24,maxWidth:720,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}} onClick={ev=>ev.stopPropagation()}>
      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-       <div><h2 style={{margin:0}}>Aperçu du modèle</h2><small>{template.name} · {rows.length?\`Ligne \${rowIndex+1} / \${rows.length}\`: "Aucune donnée importée"}</small></div>
+       <div><h2 style={{margin:0}}>Aperçu du modèle</h2><small>{template.name} · {rows.length?`Ligne ${rowIndex+1} / ${rows.length}`: "Aucune donnée importée"}</small></div>
        <button onClick={close}>Fermer</button>
      </div>
      {rows.length>0&&<div style={{display:"flex",gap:8,alignItems:"center",marginBottom:18}}>
