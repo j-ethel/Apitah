@@ -76,3 +76,30 @@ export async function resolveAssetPaths(elements:CanvasElement[]){
   for(const el of out){const path=(el as any).assetPath??(el as any).assetUrl;if(path&&typeof path==="string"&&!path.startsWith("http")&&!path.startsWith("data:"))el.assetUrl=await signedAssetUrl(path)??undefined}
   return out;
 }
+export type CloudJob={id:string;name:string;code:string;description:string|null;document_type_id:string|null;template_id:string|null;active:boolean;settings:Record<string,unknown>;created_at:string;updated_at:string};
+
+export async function loadCloudJobs(){
+  if(!supabase)return [];
+  const {data,error}=await supabase.from("document_jobs").select("id,name,code,description,document_type_id,template_id,active,settings,created_at,updated_at").order("updated_at",{ascending:false});
+  if(error)throw error; return (data??[]) as CloudJob[];
+}
+
+export async function saveCloudJob(job:{id?:string;name:string;code:string;description?:string;document_type_id?:string|null;template_id?:string|null;active?:boolean;settings?:Record<string,unknown>}){
+  if(!supabase)throw new Error("Supabase n'est pas configuré.");
+  const session=await getCloudSession();if(!session?.user)throw new Error("Connectez-vous à Supabase.");
+  const payload:any={name:job.name.trim(),code:job.code.trim().toUpperCase(),description:job.description??null,document_type_id:job.document_type_id??null,template_id:job.template_id??null,active:job.active??true,settings:job.settings??{}};
+  if(job.id)payload.id=job.id;
+  const {data,error}=await supabase.from("document_jobs").upsert(payload,{onConflict:"id"}).select("id,name,code,description,document_type_id,template_id,active,settings,created_at,updated_at").single();
+  if(error)throw error;return data as CloudJob;
+}
+
+export async function loadCloudDocumentTypes(){
+  if(!supabase)return [];
+  const {data,error}=await supabase.from("document_types").select("id,name,code,description,active").eq("active",true).order("name");
+  if(error)throw error;return data??[];
+}
+
+export async function deleteCloudJob(id:string){
+  if(!supabase)throw new Error("Supabase n'est pas configuré.");
+  const {error}=await supabase.from("document_jobs").delete().eq("id",id);if(error)throw error;
+}
