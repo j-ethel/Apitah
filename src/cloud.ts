@@ -18,7 +18,7 @@ export async function signOutCloud(){if(supabase)await supabase.auth.signOut()}
 
 export async function loadCloudTemplates(){
   if(!supabase)return [];
-  const {data,error}=await supabase.from("document_templates").select("id,name,description,page_width,page_height,unit,orientation,settings,updated_at").order("updated_at",{ascending:false});
+  const {data,error}=await supabase.from("document_templates").select("id,name,description,page_width,page_height,unit,orientation,settings,updated_at,document_template_elements(*)").order("updated_at",{ascending:false});
   if(error)throw error;
   return (data??[]) as CloudTemplate[];
 }
