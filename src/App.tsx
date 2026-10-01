@@ -16,7 +16,7 @@ const starterTemplates:DocumentTemplate[]=[
 function App(){
  const[s,setS]=useState<Section>("editor");const[e,setE]=useState<CanvasElement[]>(initialElements);const[sel,setSel]=useState("e3");const[saved,setSaved]=useState(false);
  const[templates,setTemplates]=useState<DocumentTemplate[]>(starterTemplates);const[activeTemplate,setActiveTemplate]=useState("tpl-1");const[fields,setFields]=useState<DynamicField[]>(initialFields);
- const[rows,setRows]=useState<Record<string,unknown>[]>([]);const[fileName,setFileName]=useState("");
+ const[rows,setRows]=useState<Record<string,unknown>[]>([]);const[fileName,setFileName]=useState("");const[selectedRow,setSelectedRow]=useState(0);const[preview,setPreview]=useState(false);
  const add=(type:CanvasElement["type"],label:string,fieldKey?:string,x=100,y=150)=>{const id="e"+Date.now();setE(v=>[...v,{id,type,label,x,y,width:type==="image"?75:130,height:type==="image"?92:28,fontSize:13,fontWeight:"600",align:"left",fieldKey}]);setSel(id)};
  const update=(id:string,p:Partial<CanvasElement>)=>setE(v=>v.map(x=>x.id===id?{...x,...p}:x));const remove=()=>{setE(v=>v.filter(x=>x.id!==sel));setSel("")};
  const saveTemplate=()=>{setTemplates(v=>v.map(t=>t.id===activeTemplate?{...t,elements:e,updatedAt:"À l'instant"}:t));setSaved(true);setTimeout(()=>setSaved(false),1500)};
@@ -26,7 +26,7 @@ function App(){
  const duplicateTemplate=(id:string)=>{const source=templates.find(t=>t.id===id);if(!source)return;const copy:DocumentTemplate={...source,id:"tpl-"+Date.now(),name:source.name+" — Copie",updatedAt:"À l'instant",elements:source.elements.map(x=>({...x,id:x.id+"-copy"}))};setTemplates(v=>[...v,copy])};
  const deleteTemplate=(id:string)=>{if(templates.length<=1)return;setTemplates(v=>v.filter(t=>t.id!==id));if(activeTemplate===id){const next=templates.find(t=>t.id!==id);if(next){setActiveTemplate(next.id);setE(next.elements.map(x=>({...x})));setSel(next.elements[0]?.id??"")}}};
  const importExcel=(ev:ChangeEvent<HTMLInputElement>)=>{const file=ev.target.files?.[0];if(!file)return;setFileName(file.name);const reader=new FileReader();reader.onload=event=>{try{const data=new Uint8Array(event.target?.result as ArrayBuffer);const wb=XLSX.read(data,{type:"array"});const sheet=wb.Sheets[wb.SheetNames[0]];const json=XLSX.utils.sheet_to_json<Record<string,unknown>>(sheet,{defval:""});setRows(json);const headers=json.length?Object.keys(json[0]):[];const generated:DynamicField[]=headers.map((h,i)=>{const key=h.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"")||"champ_"+(i+1);const sample=json.find(r=>String(r[h]).trim()!=="")?.[h];const type=typeof sample==="number"?"number":"text";return{id:"excel-"+i+"-"+Date.now(),label:h,key,type}});setFields(prev=>{const map=new Map(prev.map(f=>[f.key,f]));generated.forEach(f=>{if(!map.has(f.key))map.set(f.key,f)});return[...map.values()]});}catch{setRows([])}};reader.readAsArrayBuffer(file);ev.target.value=""};
- return <div className="app"><aside className="sidebar"><div className="brand"><div className="logo">A</div><div><strong>Apitah</strong><span>Document Studio</span></div></div><nav>{nav.map(([id,label,I])=><button key={id} className={s===id?"nav-item active":"nav-item"} onClick={()=>setS(id)}><I size={18}/><span>{label}</span>{id==="fields"&&<em>{fields.length}</em>}</button>)}</nav></aside><main><header><div><small>Projets / {templates.find(t=>t.id===activeTemplate)?.name}</small><h1>{nav.find(n=>n[0]===s)?.[1]}</h1></div><div className="actions"><button><Eye size={16}/> Aperçu</button><button className="dark" onClick={saveTemplate}><Save size={16}/>{saved?"Enregistré":"Enregistrer"}</button></div></header>{s==="editor"?<Editor e={e} sel={sel} setSel={setSel} add={add} update={update} remove={remove} fields={fields}/>:s==="templates"?<Templates templates={templates} active={activeTemplate} open={openTemplate} create={createTemplate} rename={renameTemplate} duplicate={duplicateTemplate} remove={deleteTemplate}/>:s==="excel"?<ExcelPage fileName={fileName} rows={rows} importExcel={importExcel}/>:<Page section={s} add={add} fields={fields}/>}</main></div>
+ return <div className="app"><aside className="sidebar"><div className="brand"><div className="logo">A</div><div><strong>Apitah</strong><span>Document Studio</span></div></div><nav>{nav.map(([id,label,I])=><button key={id} className={s===id?"nav-item active":"nav-item"} onClick={()=>setS(id)}><I size={18}/><span>{label}</span>{id==="fields"&&<em>{fields.length}</em>}</button>)}</nav></aside><main><header><div><small>Projets / {templates.find(t=>t.id===activeTemplate)?.name}</small><h1>{nav.find(n=>n[0]===s)?.[1]}</h1></div><div className="actions"><button onClick={()=>setPreview(true)}><Eye size={16}/> Aperçu</button><button className="dark" onClick={saveTemplate}><Save size={16}/>{saved?"Enregistré":"Enregistrer"}</button></div></header>{s==="editor"?<Editor e={e} sel={sel} setSel={setSel} add={add} update={update} remove={remove} fields={fields}/>:s==="templates"?<Templates templates={templates} active={activeTemplate} open={openTemplate} create={createTemplate} rename={renameTemplate} duplicate={duplicateTemplate} remove={deleteTemplate}/>:s==="excel"?<ExcelPage fileName={fileName} rows={rows} importExcel={importExcel}/>:<Page section={s} add={add} fields={fields}/>}</main></div>
 }
 
 function Editor({e,sel,setSel,add,update,remove,fields}:{e:CanvasElement[];sel:string;setSel:(x:string)=>void;add:(t:CanvasElement["type"],l:string,k?:string,x?:number,y?:number)=>void;update:(id:string,p:Partial<CanvasElement>)=>void;remove:()=>void;fields:DynamicField[]}){
@@ -46,3 +46,34 @@ function ExcelPage({fileName,rows,importExcel}:{fileName:string;rows:Record<stri
 function Page({section,add,fields}:{section:Section;add:(t:CanvasElement["type"],l:string,k?:string)=>void;fields:DynamicField[]}){return <div className="page"><div className="heading"><div><h2>{nav.find(n=>n[0]===section)?.[1]}</h2><p>Gérez les ressources utilisées pour générer vos documents automatiquement.</p></div><button className="dark" onClick={()=>add("field","{{nouveau_champ}}")}><Plus size={16}/> Ajouter</button></div><div className="grid">{section==="dashboard"&&["Modèles|02","Champs dynamiques|"+String(fields.length).padStart(2,"0"),"Documents générés|128"].map(x=><div className="stat" key={x}><small>{x.split("|")[0]}</small><b>{x.split("|")[1]}</b></div>)}{section==="fields"&&<div className="wide"><h3>Champs dynamiques centralisés</h3>{fields.map(f=><div className="row" key={f.id}><Braces size={14}/><b>{f.label}</b><code>{"{{"+f.key+"}}"}</code><span>{f.type==="select"?"Femme · Homme · Autres":f.type}</span></div>)}</div>}{section==="elements"&&palette.map(([t,l,I])=><div className="stat" key={t}><I size={17}/><small>Élément</small><b>{l}</b></div>)}</div></div>}
 
 export default App;
+
+function Preview({template,rows,rowIndex,setRowIndex,close}:{template:DocumentTemplate;rows:Record<string,unknown>[];rowIndex:number;setRowIndex:(n:number)=>void;close:()=>void}){
+ const row=rows[rowIndex]??{};
+ const resolve=(el:CanvasElement)=>{
+   if(!el.fieldKey)return el.label;
+   const value=row[el.fieldKey];
+   return value===undefined||value===null||String(value)===""?"—":String(value);
+ };
+ const validImage=(v:unknown)=>typeof v==="string"&&(v.startsWith("http://")||v.startsWith("https://")||v.startsWith("data:image/"));
+ return <div className="preview-overlay" style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={close}>
+   <div style={{background:"#fff",borderRadius:16,padding:24,maxWidth:720,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}} onClick={ev=>ev.stopPropagation()}>
+     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+       <div><h2 style={{margin:0}}>Aperçu du modèle</h2><small>{template.name} · {rows.length?\`Ligne \${rowIndex+1} / \${rows.length}\`: "Aucune donnée importée"}</small></div>
+       <button onClick={close}>Fermer</button>
+     </div>
+     {rows.length>0&&<div style={{display:"flex",gap:8,alignItems:"center",marginBottom:18}}>
+       <button disabled={rowIndex<=0} onClick={()=>setRowIndex(Math.max(0,rowIndex-1))}>← Précédente</button>
+       <button disabled={rowIndex>=rows.length-1} onClick={()=>setRowIndex(Math.min(rows.length-1,rowIndex+1))}>Suivante →</button>
+       <select value={rowIndex} onChange={ev=>setRowIndex(Number(ev.target.value))}>{rows.map((_,i)=><option key={i} value={i}>Ligne {i+1}</option>)}</select>
+     </div>}
+     <div className="stage" style={{minHeight:300,display:"flex",alignItems:"center",justifyContent:"center",background:"#f4f5f7",borderRadius:12}}>
+       <div className="card" style={{position:"relative",width:425,height:270,overflow:"hidden"}}>
+         {template.elements.map(el=><div key={el.id} className={"canvas-el "+el.type} style={{position:"absolute",left:el.x,top:el.y,width:el.width,height:el.height,fontSize:el.fontSize,fontWeight:el.fontWeight,textAlign:el.align}}>
+           {el.type==="image" ? (validImage(row[el.fieldKey??""]) ? <img src={String(row[el.fieldKey??""])} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <div className="photo-placeholder"><ImageIcon size={25}/></div>) : el.type==="shape" ? null : resolve(el)}
+         </div>)}
+       </div>
+     </div>
+     {rows.length===0&&<p style={{margin:"14px 0 0",textAlign:"center",color:"#666"}}>Importez un fichier Excel pour visualiser automatiquement une ligne dans le modèle.</p>}
+   </div>
+ </div>
+}
