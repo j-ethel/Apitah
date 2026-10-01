@@ -13,8 +13,8 @@ const base = { width: 130, height: 28, fontSize: 13, fontWeight: "600" as const,
 
 export const initialElements: CanvasElement[] = [
   { id: "e1", type: "shape", label: "Fond de carte", x: 0, y: 0, width: 425, height: 270, ...base },
-  { id: "e2", type: "image", label: "Photo", x: 32, y: 34, width: 75, height: 92, ...base },
-  { id: "e3", type: "field", label: "{{nom_complet}}", x: 126, y: 42, ...base },
-  { id: "e4", type: "field", label: "{{fonction}}", x: 126, y: 76, ...base },
-  { id: "e5", type: "field", label: "{{matricule}}", x: 126, y: 110, ...base }
+  { id: "e2", type: "image", label: "Photo", fieldKey: "photo", x: 32, y: 34, width: 75, height: 92, ...base },
+  { id: "e3", type: "field", label: "{{nom_complet}}", fieldKey: "nom_complet", x: 126, y: 42, ...base },
+  { id: "e4", type: "field", label: "{{fonction}}", fieldKey: "fonction", x: 126, y: 76, ...base },
+  { id: "e5", type: "field", label: "{{matricule}}", fieldKey: "matricule", x: 126, y: 110, ...base }
 ];
