@@ -1,0 +1,17 @@
+export type Section = "dashboard" | "editor" | "templates" | "fields" | "elements" | "excel";
+
+export type DynamicField = {
+  id: string;
+  label: string;
+  key: string;
+  type: "text" | "number" | "date" | "select" | "image";
+  options?: string[];
+};
+
+export type CanvasElement = {
+  id: string;
+  type: "text" | "image" | "field" | "shape";
+  label: string;
+  x: number;
+  y: number;
+};
