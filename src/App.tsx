@@ -109,21 +109,19 @@ async function exportCardPng(template:DocumentTemplate,row:Record<string,unknown
  const ctx=canvas.getContext("2d");if(!ctx)return;ctx.scale(2,2);ctx.fillStyle="#fff";ctx.fillRect(0,0,cardW,cardH);
  const validImage=(v:unknown)=>typeof v==="string"&&(v.startsWith("http://")||v.startsWith("https://")||v.startsWith("data:image/"));
  for(const el of template.elements){
-   if(el.type==="shape"){ctx.fillStyle="#eef0f3";ctx.fillRect(el.x,el.y,el.width,el.height);continue}
-   if(el.type==="image"&&validImage(row[el.fieldKey??""])){
-     try{const img=new Image();img.crossOrigin="anonymous";img.src=String(row[el.fieldKey??""]);await new Promise<void>((ok,fail)=>{img.onload=()=>ok();img.onerror=()=>fail();});ctx.drawImage(img,el.x,el.y,el.width,el.height);continue}catch{}
+   if(el.type==="shape"){ctx.save();ctx.globalAlpha=el.opacity??1;ctx.translate(el.x+el.width/2,el.y+el.height/2);ctx.rotate(((el.rotation??0)*Math.PI)/180);roundedRectPath(ctx,-el.width/2,-el.height/2,el.width,el.height,el.borderRadius??0);ctx.fillStyle=el.backgroundColor||"#eef0f3";ctx.fill();if((el.borderWidth??0)>0){ctx.strokeStyle=el.borderColor||"#b7bdc7";ctx.lineWidth=el.borderWidth??0;ctx.stroke()}ctx.restore();continue}
+   if(el.type==="image"&&validImage(elementImageSource(el,row))){
+     try{const img=new Image();img.crossOrigin="anonymous";img.src=String(elementImageSource(el,row));await new Promise<void>((ok,fail)=>{img.onload=()=>ok();img.onerror=()=>fail();});ctx.drawImage(img,el.x,el.y,el.width,el.height);continue}catch{}
    }
-   if(el.type==="image"){ctx.strokeStyle="#b7bdc7";ctx.strokeRect(el.x,el.y,el.width,el.height);continue}
+   if(el.type==="image"){ctx.save();ctx.globalAlpha=el.opacity??1;ctx.translate(el.x+el.width/2,el.y+el.height/2);ctx.rotate(((el.rotation??0)*Math.PI)/180);roundedRectPath(ctx,-el.width/2,-el.height/2,el.width,el.height,el.borderRadius??0);ctx.strokeStyle=el.borderColor||"#b7bdc7";ctx.lineWidth=el.borderWidth??1;ctx.stroke();ctx.restore();continue}
    ctx.fillStyle="#273143";ctx.font=`${el.fontWeight} ${el.fontSize}px Arial`;ctx.textAlign=el.align==="center"?"center":el.align==="right"?"right":"left";
    const value=resolveElementValue(el,row);const tx=el.align==="center"?el.x+el.width/2:el.align==="right"?el.x+el.width:el.x+5;ctx.fillText(value,tx,el.y+el.fontSize+3);
  }
  canvas.toBlob(blob=>{if(!blob)return;const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`apitah-carte-${index+1}.png`;a.click();URL.revokeObjectURL(a.href)},"image/png");
 }
 
-function drawCoverImage(ctx:CanvasRenderingContext2D,img:HTMLImageElement,x:number,y:number,w:number,h:number){
- const scale=Math.max(w/img.naturalWidth,h/img.naturalHeight),sw=w/scale,sh=h/scale,sx=(img.naturalWidth-sw)/2,sy=(img.naturalHeight-sh)/2;
- ctx.drawImage(img,sx,sy,sw,sh,x,y,w,h);
-}
+function roundedRectPath(ctx:CanvasRenderingContext2D,x:number,y:number,w:number,h:number,r:number){const radius=Math.max(0,Math.min(r,Math.min(w,h)/2));ctx.beginPath();ctx.moveTo(x+radius,y);ctx.arcTo(x+w,y,x+w,y+h,radius);ctx.arcTo(x+w,y+h,x,y+h,radius);ctx.arcTo(x,y+h,x,y,radius);ctx.arcTo(x,y,x+w,y,radius);ctx.closePath()}
+function drawCoverImage(ctx:CanvasRenderingContext2D,img:HTMLImageElement,x:number,y:number,w:number,h:number,radius=0){ctx.save();roundedRectPath(ctx,x,y,w,h,radius);ctx.clip();const scale=Math.max(w/img.naturalWidth,h/img.naturalHeight),sw=w/scale,sh=h/scale,sx=(img.naturalWidth-sw)/2,sy=(img.naturalHeight-sh)/2;ctx.drawImage(img,sx,sy,sw,sh,x,y,w,h);ctx.restore()}
 function cardToBlob(template:DocumentTemplate,row:Record<string,unknown>):Promise<Blob|null>{
  return new Promise(resolve=>{
   const cardW=template.width*MM_PX,cardH=template.height*MM_PX;
@@ -134,10 +132,10 @@ function cardToBlob(template:DocumentTemplate,row:Record<string,unknown>):Promis
    for(const el of template.elements){
     if(el.type==="shape"){ctx.save();ctx.globalAlpha=el.opacity??1;ctx.translate(el.x+el.width/2,el.y+el.height/2);ctx.rotate(((el.rotation??0)*Math.PI)/180);ctx.fillStyle=el.backgroundColor||"#eef0f3";ctx.fillRect(-el.width/2,-el.height/2,el.width,el.height);if((el.borderWidth??0)>0){ctx.strokeStyle=el.borderColor||"#b7bdc7";ctx.lineWidth=el.borderWidth??0;ctx.strokeRect(-el.width/2,-el.height/2,el.width,el.height)}ctx.restore();continue}
     if(el.type==="image"&&validImageUrl(row[el.fieldKey??""])){
-     try{const img=new Image();img.crossOrigin="anonymous";img.src=String(row[el.fieldKey??""]);await new Promise<void>((ok,fail)=>{img.onload=()=>ok();img.onerror=()=>fail()});drawCoverImage(ctx,img,el.x,el.y,el.width,el.height);continue}catch{}
+     try{const img=new Image();img.crossOrigin="anonymous";img.src=String(row[el.fieldKey??""]);await new Promise<void>((ok,fail)=>{img.onload=()=>ok();img.onerror=()=>fail()});drawCoverImage(ctx,img,el.x,el.y,el.width,el.height,el.borderRadius??0);continue}catch{}
     }
     if(el.type==="image"){ctx.strokeStyle="#b7bdc7";ctx.strokeRect(el.x,el.y,el.width,el.height);continue}
-    ctx.save();ctx.globalAlpha=el.opacity??1;ctx.translate(el.x+el.width/2,el.y+el.height/2);ctx.rotate(((el.rotation??0)*Math.PI)/180);ctx.beginPath();ctx.rect(-el.width/2,-el.height/2,el.width,el.height);ctx.clip();
+    ctx.save();ctx.globalAlpha=el.opacity??1;ctx.translate(el.x+el.width/2,el.y+el.height/2);ctx.rotate(((el.rotation??0)*Math.PI)/180);roundedRectPath(ctx,-el.width/2,-el.height/2,el.width,el.height,el.borderRadius??0);ctx.clip();if(el.backgroundColor&&el.backgroundColor!=="transparent"){ctx.fillStyle=el.backgroundColor;ctx.fill()}
     ctx.fillStyle=el.color||"#273143";ctx.font=`${el.fontWeight} ${el.fontSize}px Arial`;ctx.textAlign=el.align==="center"?"center":el.align==="right"?"right":"left";ctx.textBaseline="alphabetic";
     const value=resolveElementValue(el,row);const tx=el.align==="center"?el.x+el.width/2:el.align==="right"?el.x+el.width:el.x+5;
     ctx.fillText(value,tx-(el.x+el.width/2),-el.height/2+el.fontSize+3);if((el.borderWidth??0)>0){ctx.strokeStyle=el.borderColor||"#b7bdc7";ctx.lineWidth=el.borderWidth??0;ctx.strokeRect(-el.width/2,-el.height/2,el.width,el.height)}ctx.restore();
