@@ -6,3 +6,5 @@
 
 .a4-sheet{display:grid;align-content:start;width:210mm;min-height:297mm;margin:0 auto;background:#fff;box-sizing:border-box;border:1px solid #d9dde4;box-shadow:0 12px 35px #00000018;overflow:auto}.a4-sheet.landscape{width:297mm;min-height:210mm}.a4-card{width:85mm;height:54mm;position:relative}.a4-card .generated-card{transform:none;margin:0}.a4-card>span{display:block;text-align:center;font-size:8px;color:#89919e;margin-top:4px}.a4-sheet .card{width:425px;height:270px;transform:scale(.798);transform-origin:top left;margin-bottom:-55px}
 @media(max-width:900px){.a4-sheet{transform-origin:top left;transform:scale(.72);margin-bottom:-85px}.a4-sheet.landscape{transform:scale(.6);margin-bottom:-110px}}
+
+.toolbar select{height:30px;border:1px solid #dfe3e8;border-radius:7px;background:#fff;padding:5px 8px;font-size:10px;margin-left:8px}.format-input{width:58px!important;height:30px!important;margin-left:5px}
