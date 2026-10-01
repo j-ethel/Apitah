@@ -115,22 +115,48 @@ async function exportCardPng(template:DocumentTemplate,row:Record<string,unknown
  canvas.toBlob(blob=>{if(!blob)return;const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`apitah-carte-${index+1}.png`;a.click();URL.revokeObjectURL(a.href)},"image/png");
 }
 
+function drawCoverImage(ctx:CanvasRenderingContext2D,img:HTMLImageElement,x:number,y:number,w:number,h:number){
+ const scale=Math.max(w/img.naturalWidth,h/img.naturalHeight),sw=w/scale,sh=h/scale,sx=(img.naturalWidth-sw)/2,sy=(img.naturalHeight-sh)/2;
+ ctx.drawImage(img,sx,sy,sw,sh,x,y,w,h);
+}
 function cardToBlob(template:DocumentTemplate,row:Record<string,unknown>):Promise<Blob|null>{
- return new Promise(resolve=>{const cardW=template.width*MM_PX,cardH=template.height*MM_PX;const canvas=document.createElement("canvas");canvas.width=cardW*2;canvas.height=cardH*2;const ctx=canvas.getContext("2d");if(!ctx){resolve(null);return}ctx.scale(2,2);ctx.fillStyle="#fff";ctx.fillRect(0,0,cardW,cardH);const validImage=(v:unknown)=>typeof v==="string"&&(v.startsWith("http://")||v.startsWith("https://")||v.startsWith("data:image/"));const work=async()=>{for(const el of template.elements){if(el.type==="shape"){ctx.fillStyle="#eef0f3";ctx.fillRect(el.x,el.y,el.width,el.height);continue}if(el.type==="image"&&validImage(row[el.fieldKey??""])){try{const img=new Image();img.crossOrigin="anonymous";img.src=String(row[el.fieldKey??""]);await new Promise<void>((ok,fail)=>{img.onload=()=>ok();img.onerror=()=>fail()});ctx.drawImage(img,el.x,el.y,el.width,el.height);continue}catch{}}if(el.type==="image"){ctx.strokeStyle="#b7bdc7";ctx.strokeRect(el.x,el.y,el.width,el.height);continue}ctx.fillStyle="#273143";ctx.font=`${el.fontWeight} ${el.fontSize}px Arial`;ctx.textAlign=el.align==="center"?"center":el.align==="right"?"right":"left";const tx=el.align==="center"?el.x+el.width/2:el.align==="right"?el.x+el.width:el.x+5;ctx.fillText(resolveElementValue(el,row),tx,el.y+el.fontSize+3)}canvas.toBlob(resolve,"image/png")};work()})}
+ return new Promise(resolve=>{
+  const cardW=template.width*MM_PX,cardH=template.height*MM_PX;
+  const canvas=document.createElement("canvas");canvas.width=cardW*2;canvas.height=cardH*2;
+  const ctx=canvas.getContext("2d");if(!ctx){resolve(null);return}
+  ctx.scale(2,2);ctx.fillStyle="#fff";ctx.fillRect(0,0,cardW,cardH);
+  const work=async()=>{
+   for(const el of template.elements){
+    if(el.type==="shape"){ctx.fillStyle="#eef0f3";ctx.fillRect(el.x,el.y,el.width,el.height);continue}
+    if(el.type==="image"&&validImageUrl(row[el.fieldKey??""])){
+     try{const img=new Image();img.crossOrigin="anonymous";img.src=String(row[el.fieldKey??""]);await new Promise<void>((ok,fail)=>{img.onload=()=>ok();img.onerror=()=>fail()});drawCoverImage(ctx,img,el.x,el.y,el.width,el.height);continue}catch{}
+    }
+    if(el.type==="image"){ctx.strokeStyle="#b7bdc7";ctx.strokeRect(el.x,el.y,el.width,el.height);continue}
+    ctx.save();ctx.beginPath();ctx.rect(el.x,el.y,el.width,el.height);ctx.clip();
+    ctx.fillStyle="#273143";ctx.font=`${el.fontWeight} ${el.fontSize}px Arial`;ctx.textAlign=el.align==="center"?"center":el.align==="right"?"right":"left";ctx.textBaseline="alphabetic";
+    const value=resolveElementValue(el,row);const tx=el.align==="center"?el.x+el.width/2:el.align==="right"?el.x+el.width:el.x+5;
+    ctx.fillText(value,tx,el.y+el.fontSize+3);ctx.restore();
+   }
+   canvas.toBlob(resolve,"image/png")
+  };work()
+ })
+}
 async function exportPdfDirect(template:DocumentTemplate,rows:Record<string,unknown>[],gap:number,margin:number,orientation:"portrait"|"landscape",onProgress?:(n:number)=>void){
- const layout=calculateA4(template.width,template.height,orientation,margin,gap); if(layout.perPage<1){alert("Le format choisi ne tient pas sur une feuille A4 avec ces réglages.");return}
- const pdf=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
- const cardBlobs:Blob[]=[];
- for(let i=0;i<rows.length;i++){const b=await cardToBlob(template,rows[i]);if(b)cardBlobs.push(b);onProgress?.(i+1)}
+ const layout=calculateA4(template.width,template.height,orientation,margin,gap);
+ if(layout.perPage<1){alert("Le format choisi ne tient pas sur une feuille A4 avec ces réglages.");return}
+ const pdf=new jsPDF({orientation,unit:"mm",format:"a4"});
  const cardsPerPage=layout.perPage;
- for(let i=0;i<cardBlobs.length;i++){
-   if(i>0&&i%cardsPerPage===0)pdf.addPage("a4",orientation);
-   const local=i%cardsPerPage,row=Math.floor(local/layout.columns),col=local%layout.columns;
-   const x=margin+col*(template.width+gap),y=margin+row*(template.height+gap);
-   const data=await blobToDataUrl(cardBlobs[i]);
-   pdf.addImage(data,"PNG",x,y,template.width,template.height);
+ for(let i=0;i<rows.length;i++){
+  const blob=await cardToBlob(template,rows[i]);if(!blob)continue;
+  if(i>0&&i%cardsPerPage===0)pdf.addPage("a4",orientation);
+  const local=i%cardsPerPage,rowIndex=Math.floor(local/layout.columns),col=local%layout.columns;
+  const x=margin+col*(template.width+gap),y=margin+rowIndex*(template.height+gap);
+  pdf.addImage(await blobToDataUrl(blob),"PNG",x,y,template.width,template.height);
+  onProgress?.(Math.round(((i+1)/rows.length)*100));
  }
- pdf.save("apitah-cartes.pdf");
+ const stamp=new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+ const name=template.name.trim().replace(/[^a-zA-Z0-9_-]+/g,"-").replace(/^-+|-+$/g,"")||"cartes";
+ pdf.save(`apitah-${name}-${stamp}.pdf`);
 }
 function blobToDataUrl(blob:Blob):Promise<string>{return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=reject;r.readAsDataURL(blob)})}
 async function exportAllZip(template:DocumentTemplate,rows:Record<string,unknown>[],onProgress?:(n:number)=>void){const zip=new JSZip();for(let i=0;i<rows.length;i++){const blob=await cardToBlob(template,rows[i]);if(blob)zip.file(`carte-${safeFileName(rows[i],i)}.png`,blob);onProgress?.(i+1)}const out=await zip.generateAsync({type:"blob"});const url=URL.createObjectURL(out);const a=document.createElement("a");a.href=url;a.download="apitah-cartes.zip";a.click();URL.revokeObjectURL(url)}
