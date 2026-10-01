@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { LayoutDashboard, MousePointer2, FileText, Braces, Shapes, Table2, Plus, Upload, Eye, Save, Type, Image as ImageIcon, Square, GripVertical, Trash2, Copy, Pencil, FolderOpen, CheckCircle2 } from "lucide-react";
-import type { MouseEvent, DragEvent, ChangeEvent } from "react";
+import type { MouseEvent, DragEvent, ChangeEvent, CSSProperties } from "react";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
 import { jsPDF } from "jspdf";
@@ -20,7 +20,7 @@ const STORAGE_FIELDS="apitah:fields:v1";
 function readStored<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw) as T:fallback}catch{return fallback}}
 function cloneElements(elements:CanvasElement[]){return elements.map(x=>({...x}))}
 function elementImageSource(el:CanvasElement,row:Record<string,unknown>){return el.assetUrl??row[el.fieldKey??""]}
-function elementStyle(el:CanvasElement):React.CSSProperties{return {position:"absolute",left:el.x,top:el.y,width:el.width,height:el.height,fontSize:el.fontSize,fontWeight:el.fontWeight,textAlign:el.align,color:el.color||"#273143",backgroundColor:el.backgroundColor,border:el.borderWidth?String(el.borderWidth)+"px solid "+(el.borderColor||"#b7bdc7"):"none",borderRadius:el.borderRadius??0,opacity:el.opacity??1,transform:el.rotation?"rotate("+el.rotation+"deg)":"none",zIndex:el.zIndex??(el.type==="shape"?0:3),boxSizing:"border-box"}}
+function elementStyle(el:CanvasElement):CSSProperties{return {position:"absolute",left:el.x,top:el.y,width:el.width,height:el.height,fontSize:el.fontSize,fontWeight:el.fontWeight,textAlign:el.align,color:el.color||"#273143",backgroundColor:el.backgroundColor,border:el.borderWidth?String(el.borderWidth)+"px solid "+(el.borderColor||"#b7bdc7"):"none",borderRadius:el.borderRadius??0,opacity:el.opacity??1,transform:el.rotation?"rotate("+el.rotation+"deg)":"none",zIndex:el.zIndex??(el.type==="shape"?0:3),boxSizing:"border-box"}}
 
 function App(){
  const[s,setS]=useState<Section>("editor");const[templates,setTemplates]=useState<DocumentTemplate[]>(()=>readStored(STORAGE_TEMPLATES,starterTemplates));const[activeTemplate,setActiveTemplate]=useState("tpl-1");const[e,setE]=useState<CanvasElement[]>(()=>cloneElements(readStored<DocumentTemplate[]>(STORAGE_TEMPLATES,starterTemplates).find(t=>t.id==="tpl-1")?.elements??initialElements));const[sel,setSel]=useState("e3");const[saved,setSaved]=useState(false); const[format,setFormat]=useState("business"); const[customW,setCustomW]=useState(85); const[customH,setCustomH]=useState(54);const[fields,setFields]=useState<DynamicField[]>(()=>readStored(STORAGE_FIELDS,initialFields));
