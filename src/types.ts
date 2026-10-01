@@ -1,3 +1,4 @@
 export type Section="dashboard"|"editor"|"templates"|"fields"|"elements"|"excel";
 export type DynamicField={id:string;label:string;key:string;type:"text"|"number"|"date"|"select"|"image";options?:string[]};
 export type CanvasElement={id:string;type:"text"|"image"|"field"|"shape";label:string;x:number;y:number;width:number;height:number;fontSize:number;fontWeight:"400"|"600"|"700";align:"left"|"center"|"right";fieldKey?:string};
+export type DocumentTemplate={id:string;name:string;description:string;width:number;height:number;updatedAt:string;elements:CanvasElement[]};
