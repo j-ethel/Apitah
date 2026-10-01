@@ -24,3 +24,11 @@
 .match-good{color:#147a4a;font-weight:700}
 .match-none{color:#9a5b00}
 .excel-table .section-title{padding:0 2px}
+
+
+.jobs-layout{display:grid;grid-template-columns:minmax(250px,.8fr) minmax(380px,1.5fr);gap:18px}
+.job-row{width:100%;display:flex;align-items:center;gap:10px;padding:12px;border:0;border-radius:10px;background:#f7f8fa;text-align:left;margin-bottom:8px;cursor:pointer}
+.job-row span{display:flex;flex-direction:column;gap:3px}.job-row small{color:#687184}.job-selected{outline:2px solid #273143;background:#fff}
+.job-form{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}.job-form label{display:flex;flex-direction:column;gap:6px;font-weight:600}.job-form label:last-child{grid-column:1/-1}
+.job-form input,.job-form select,.job-form textarea{font:inherit;border:1px solid #d7dce3;border-radius:9px;padding:10px;background:#fff}
+@media(max-width:900px){.jobs-layout{grid-template-columns:1fr}.job-form{grid-template-columns:1fr}}
