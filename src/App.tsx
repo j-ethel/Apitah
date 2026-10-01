@@ -9,7 +9,7 @@ import { dynamicFields as initialFields, initialElements } from "./data";
 const nav: [Section,string,any][]=[["dashboard","Tableau de bord",LayoutDashboard],["editor","Éditeur visuel",MousePointer2],["templates","Gestion des modèles",FileText],["fields","Champs dynamiques",Braces],["elements","Éléments du document",Shapes],["excel","Import Excel",Table2]];
 const palette=[["text","Texte",Type],["image","Image",ImageIcon],["shape","Forme",Square]];
 const MM_PX=5; const CARD_W=425,CARD_H=270,GRID=5;
-const CARD_FORMATS=[{id:"business",label:"Carte 85 × 54 mm",width:85,height:54},{id:"badge",label:"Badge 90 × 60 mm",width:90,height:60},{id:"a6",label:"A6 148 × 105 mm",width:148,height:105},{id:"custom",label:"Personnalisé",width:85,height:54}];
+function calculateA4(cardW:number,cardH:number,orientation:"portrait"|"landscape",margin:number,gap:number){const pageW=orientation==="portrait"?210:297,pageH=orientation==="portrait"?297:210;const usableW=pageW-2*margin,usableH=pageH-2*margin;const columns=Math.max(0,Math.floor((usableW+gap)/(cardW+gap)));const rows=Math.max(0,Math.floor((usableH+gap)/(cardH+gap)));return{columns,rows,perPage:columns*rows,pageW,pageH,usableW,usableH}}\nconst CARD_FORMATS=[{id:"business",label:"Carte 85 × 54 mm",width:85,height:54},{id:"badge",label:"Badge 90 × 60 mm",width:90,height:60},{id:"a6",label:"A6 148 × 105 mm",width:148,height:105},{id:"custom",label:"Personnalisé",width:85,height:54}];
 const starterTemplates:DocumentTemplate[]=[
 {id:"tpl-1",name:"Carte professionnelle",description:"Carte d'identification professionnelle",width:85,height:54,updatedAt:"Aujourd'hui",elements:initialElements},
 {id:"tpl-2",name:"Badge événement",description:"Badge nominatif pour événement",width:85,height:54,updatedAt:"Aujourd'hui",elements:initialElements.slice(0,3)}
@@ -121,16 +121,16 @@ function printBulk(template:DocumentTemplate,rows:Record<string,unknown>[],colum
 }
 
 function BulkPreview({template,rows,close}:{template:DocumentTemplate;rows:Record<string,unknown>[];close:()=>void}){
- const[columns,setColumns]=useState(2);const[gap,setGap]=useState(8);const[margin,setMargin]=useState(10);const[orientation,setOrientation]=useState<"portrait"|"landscape">("portrait");
+ const[gap,setGap]=useState(8);const[margin,setMargin]=useState(10);const[orientation,setOrientation]=useState<"portrait"|"landscape">("portrait");const layout=calculateA4(template.width,template.height,orientation,margin,gap);const columns=layout.columns;
  return <div className="preview-overlay" style={{position:"fixed",inset:0,zIndex:1001,background:"rgba(0,0,0,.55)",padding:24,overflow:"auto"}} onClick={close}>
    <div style={{background:"#fff",borderRadius:16,padding:24,width:"100%",minHeight:"100%",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}} onClick={ev=>ev.stopPropagation()}>
      <div className="bulk-header">
        <div><h2 style={{margin:0}}>Génération en masse</h2><small>{template.name} · {rows.length} carte(s) générée(s)</small></div>
        <div className="actions"><span className="generated-count">✓ {rows.length} générées</span><button disabled={!rows.length} onClick={()=>printBulk(template,rows,columns,gap,margin,orientation)}>Exporter PDF</button><button disabled={!rows.length} onClick={()=>exportAllZip(template,rows)}>PNG / ZIP</button><button onClick={close}>Fermer</button></div>
      </div>
-     <div className="export-settings"><strong>Format : {template.width} × {template.height} mm</strong><label>Orientation <select value={orientation} onChange={ev=>setOrientation(ev.target.value as "portrait"|"landscape")}><option value="portrait">Portrait</option><option value="landscape">Paysage</option></select></label><label>Colonnes <select value={columns} onChange={ev=>setColumns(Number(ev.target.value))}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></label><label>Espacement <input type="number" min="0" max="30" value={gap} onChange={ev=>setGap(Number(ev.target.value))}/> mm</label><label>Marge <input type="number" min="0" max="30" value={margin} onChange={ev=>setMargin(Number(ev.target.value))}/> mm</label></div>
+     <div className="export-settings"><strong>Format : {template.width} × {template.height} mm</strong><label>Orientation <select value={orientation} onChange={ev=>setOrientation(ev.target.value as "portrait"|"landscape")}><option value="portrait">Portrait</option><option value="landscape">Paysage</option></select></label><label>Colonnes <span>{columns} colonne(s) × {layout.rows} ligne(s) · {layout.perPage} carte(s)/page</span></label><label>Espacement <input type="number" min="0" max="30" value={gap} onChange={ev=>setGap(Number(ev.target.value))}/> mm</label><label>Marge <input type="number" min="0" max="30" value={margin} onChange={ev=>setMargin(Number(ev.target.value))}/> mm</label></div>
      <div className={`a4-sheet ${orientation}`} style={{padding:`${margin}mm`,gap:`${gap}mm`,gridTemplateColumns:`repeat(${columns},${template.width}mm)`}}>{rows.map((row,i)=><div className="a4-card" key={i}><RenderCard template={template} row={row}/><span>Carte {i+1}</span></div>)}</div>
-     {rows.length===0?<p>Aucune ligne de données à générer.</p>:<div className="generated-grid">{rows.map((row,i)=><div className="generated-item" key={i}><RenderCard template={template} row={row}/><span>Carte {i+1}</span></div>)}</div>}
+     {rows.length===0?<p>Aucune ligne de données à générer.</p>:layout.perPage===0?<p>⚠️ Ce format ne tient pas sur une feuille A4 avec ces marges et cet espacement.</p>:<div className="generated-grid">{rows.map((row,i)=><div className="generated-item" key={i}><RenderCard template={template} row={row}/><span>Carte {i+1}</span></div>)}</div>}
    </div>
  </div>
 }
